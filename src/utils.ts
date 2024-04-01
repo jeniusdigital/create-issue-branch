@@ -1,6 +1,6 @@
 import wcMatch from "wildcard-match";
 import {Analytics} from "analytics";
-import {Probot} from "probot";
+import {Context, Probot} from "probot";
 
 const googleAnalytics = require('@analytics/google-analytics').default
 // Regexp below is a stricter implementation of https://git-scm.com/docs/git-check-ref-format
@@ -45,11 +45,11 @@ const analytics = Analytics({
     })]
 })
 
-export function pushMetric(owner: string, log: any) {
+export function pushMetric(owner: string, ctx: Context<any>) {
     analytics.identify(owner, () => {
-        analytics.track('branch_created', {category: 'Branches'}, () => log.info('Pushed metric to Google Analytics'))
-            .catch(err => log.error('Could not push metric to Google Analytics: ' + err))
-    }).catch(err => log.error('Could not identify user: ' + err))
+        analytics.track('branch_created', {category: 'Branches'}, () => ctx.log.info('Pushed metric to Google Analytics'))
+            .catch(err => ctx.log.error('Could not push metric to Google Analytics: ' + err))
+    }).catch(err => ctx.log.error('Could not identify user: ' + err))
 }
 
 export function isRunningInGitHubActions() {

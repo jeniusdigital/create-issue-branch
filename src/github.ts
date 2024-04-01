@@ -26,16 +26,20 @@ import {
     formatAsExpandingMarkdown,
     getStringLengthInBytes,
     isProduction,
-    isRunningInGitHubActions, makeGitSafe, makePrefixGitSafe,
-    pushMetric, sleep,
-    trimStringToByteLength, wildcardMatch
+    isRunningInGitHubActions,
+    makeGitSafe,
+    makePrefixGitSafe,
+    pushMetric,
+    sleep,
+    trimStringToByteLength,
+    wildcardMatch
 } from "./utils";
 
 export async function createIssueBranch(app: Probot, ctx: Context<any>, branchName: string, config: Config) {
     if (await hasValidSubscriptionForRepo(app, ctx, config)) {
-        const sha = await getSourceBranchHeadSha(ctx, config, app.log)
+        const sha = await getSourceBranchHeadSha(ctx, config)
         if (sha) {
-            await createBranch(ctx, config, branchName, sha, app.log)
+            await createBranch(ctx, config, branchName, sha)
         } else {
             await addComment(ctx, config, 'Could not find source branch for new issue branch')
         }
@@ -220,18 +224,18 @@ function getPrTargetBranch(ctx: Context<any>, config: Config) {
     }
 }
 
-async function getSourceBranchHeadSha(ctx: Context<any>, config: Config, log: any) {
-    const sourceBranch = getSourceBranch(ctx, config)
-    let result = await getBranchHeadSha(ctx, sourceBranch)
+async function getSourceBranchHeadSha(ctx: Context<any>, config: Config) {
+    const sourceBranch = getSourceBranch(ctx, config);
+    let result = await getBranchHeadSha(ctx, sourceBranch);
     if (result) {
-        log.debug(`Source branch: ${sourceBranch}`)
+        ctx.log.debug(`Source branch: ${sourceBranch}`);
     }
     if (!result) {
-        const defaultBranch = getDefaultBranch(ctx, config)
-        log.debug(`Source branch: ${defaultBranch}`)
-        result = await getBranchHeadSha(ctx, defaultBranch)
+        const defaultBranch = getDefaultBranch(ctx, config);
+        ctx.log.debug(`Source branch: ${defaultBranch}`);
+        result = await getBranchHeadSha(ctx, defaultBranch);
     }
-    return result
+    return result;
 }
 
 function getDefaultBranch(ctx: Context<any>, config: Config) {
@@ -250,26 +254,26 @@ async function getBranchHeadSha(ctx: Context<any>, branch: string) {
     }
 }
 
-export async function createBranch(ctx: Context<any>, config: Config, branchName: string, sha: string, log: any) {
+export async function createBranch(ctx: Context<any>, config: Config, branchName: string, sha: string) {
     const owner = getRepoOwnerLogin(ctx)
     const repo = getRepoName(ctx)
     try {
         const res = await ctx.octokit.git.createRef({
             owner: owner, repo: repo, ref: `refs/heads/${branchName}`, sha: sha
         })
-        log(`Branch created: ${branchName}`)
+        ctx.log.info(`Branch created: ${branchName}`)
         if (isRunningInGitHubActions()) {
             setOutput('branchName', branchName)
         }
         const commentMessage = interpolate(getCommentMessage(config), {...ctx.payload, branchName: branchName})
         await addComment(ctx, config, commentMessage)
         if (isProduction()) {
-            pushMetric(owner, log)
+            pushMetric(owner, ctx);
         }
         return res
     } catch (e: any) {
         if (e.message === 'Reference already exists') {
-            log.info('Could not create branch as it already exists')
+            ctx.log.info('Could not create branch as it already exists')
         } else {
             await addComment(ctx, config, `Could not create branch \`${branchName}\` due to: ${e.message}`)
         }
